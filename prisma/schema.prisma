@@ -1,0 +1,460 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/workspace/producer/ai-producer/app/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model VideoProject {
+  id        String   @id @default(cuid())
+  sessionId String   @unique
+  userId    String?  // Pro feature: Link to user
+  
+  // Platform Selection
+  selectedPlatformId String?
+  selectedPlatform   String?  // Platform name for legacy compatibility
+  platformCategory   String?  // CREATION or DISTRIBUTION
+  usePlatformSpecificQuestions Boolean @default(false)
+  
+  // 15 Questions Data
+  mainMessage       String?
+  videoType         String?
+  videoTypeOther    String?
+  videoDimensions   String?
+  customWidth       Int?
+  customHeight      Int?
+  videoDuration     Float?
+  visualStyle       String?
+  moodTone          String?
+  colorThemes       Json? // Array of selected colors
+  keyScenes         String?
+  charactersProducts String?
+  productsObjects   String?
+  animationStyle    String?
+  cameraMovements   Json? // Array of selected movements
+  doNotInclude      String?
+  additionalNotes   String?
+  
+  // Dynamic Questions Data
+  dynamicQuestions  Json?    // Store dynamic question responses
+  
+  // AI Enhancement & Approval
+  originalPrompt    String?
+  enhancedPrompt    String?
+  promptApprovalStatus PromptApprovalStatus @default(PENDING)
+  promptApprovedAt  DateTime?
+  promptRejectedAt  DateTime?
+  platformOptimizedPrompts Json? // Store platform-specific optimized prompts
+  enhancementHistory Json?     // Store history of enhancements and edits
+  userEditedPrompt  String?    // User's final edited version
+  enhancementMetadata Json?    // Store enhancement stats and platform requirements
+  
+  // Pro Features
+  tier              UserTier @default(FREE)    // Project tier for feature access
+  creditsUsed       Int      @default(0)       // Credits consumed for this project
+  qualityLevel      String?  @default("standard") // Quality level used
+  
+  // Generation Results
+  generationStatus  String?                    // "pending", "processing", "completed", "failed"
+  generationResults Json?                      // Store generation results and metadata
+  outputUrls        Json?                      // Generated video/image URLs
+  
+  // Plugin Usage
+  pluginsUsed       Json?                      // Track which plugins were used
+  
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastSavedAt       DateTime?
+  
+  // Relations
+  user              User?               @relation(fields: [userId], references: [id])
+  styleReferences   StyleReference[]
+  characters        Character[]
+  creditTransactions CreditTransaction[]
+  
+  @@map("video_projects")
+}
+
+model StyleReference {
+  id            String       @id @default(cuid())
+  projectId     String
+  filename      String
+  originalName  String
+  fileUrl       String
+  fileType      String
+  fileSize      Int
+  uploadedAt    DateTime     @default(now())
+  
+  project       VideoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@map("style_references")
+}
+
+model Character {
+  id            String       @id @default(cuid())
+  projectId     String
+  name          String
+  description   String?
+  filename      String?
+  originalName  String?
+  fileUrl       String?
+  fileType      String?
+  fileSize      Int?
+  uploadedAt    DateTime     @default(now())
+  
+  project       VideoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@map("characters")
+}
+
+model Platform {
+  id                 String             @id @default(cuid())
+  name               String             @unique
+  url                String             @default("")
+  description        String?
+  status             PlatformStatus     @default(ACTIVE)
+  logoUrl            String?
+  
+  // Platform Categorization
+  category           PlatformCategory   @default(DISTRIBUTION)
+  
+  // Research & Analysis Fields
+  researchDate       DateTime?
+  availableOptions   Json?              // Platform capabilities and features
+  generatedQuestions Json?              // AI-generated questions for this platform
+  strengths          Json?              // Platform strengths
+  weaknesses         Json?              // Platform limitations
+  videoSpecs         Json?              // Video specifications and requirements
+  confidenceScore    Float?             // AI confidence in research accuracy
+  lastAnalyzed       DateTime?
+  
+  // Legacy fields for backward compatibility
+  maxDuration        Int?               // Maximum video duration in seconds
+  supportedStyles    Json?              // Array of supported styles
+  pricingTier        String?            // free, paid, enterprise
+  websiteUrl         String?
+  isActive           Boolean            @default(true)
+  
+  // API Integration Fields
+  apiEndpoint        String?            // Main API endpoint URL
+  authMethod         ApiAuthMethod?     // Authentication method (API_KEY, OAUTH, BEARER, etc.)
+  authRequired       Boolean            @default(false)
+  apiDocumentationUrl String?           // Link to API documentation
+  
+  // JSON & Schema Support
+  jsonFormatSupported Boolean           @default(false)
+  jsonSchema         Json?              // JSON schema for API requests
+  promptMappingRules Json?              // Rules for mapping questions to API parameters
+  
+  // Rate Limiting & Usage
+  rateLimits         Json?              // Rate limiting configuration
+  usageRestrictions  Json?              // Usage restrictions and limitations
+  
+  // Direct Submission Support
+  directSubmissionSupported Boolean     @default(false)
+  submissionEndpoint String?            // Specific endpoint for direct submissions
+  
+  // API Testing & Validation
+  lastApiTest        DateTime?          // Last time API was tested
+  apiTestStatus      ApiTestStatus?     // Status of last API test
+  apiTestResults     Json?              // Results of API testing
+  
+  // Usage Analytics
+  totalApiCalls      Int                @default(0)
+  successfulCalls    Int                @default(0)
+  failedCalls        Int                @default(0)
+  averageResponseTime Float?            // Average API response time in milliseconds
+  
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  
+  // Relations
+  proPlatform        ProPlatform?
+  creditTransactions CreditTransaction[]
+  
+  @@map("platforms")
+}
+
+enum PlatformStatus {
+  ACTIVE
+  INACTIVE
+  RESEARCH_NEEDED
+  ANALYSIS_PENDING
+}
+
+enum PlatformCategory {
+  CREATION      // AI Video Creation Platforms
+  DISTRIBUTION  // Social Media & Distribution Platforms
+}
+
+enum ApiAuthMethod {
+  API_KEY
+  OAUTH
+  BEARER_TOKEN
+  BASIC_AUTH
+  CUSTOM
+  NONE
+}
+
+enum ApiTestStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  TIMEOUT
+  AUTH_ERROR
+  RATE_LIMITED
+}
+
+enum PromptApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EDITING
+  READY_TO_SEND
+}
+
+enum UserTier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum PluginType {
+  POST_PRODUCTION
+  VOICE_OVER
+  TEXT_TO_SPEECH
+  VIDEO_EDITING
+  EFFECTS
+}
+
+enum PluginStatus {
+  ENABLED
+  DISABLED
+  TESTING
+  DEPRECATED
+}
+
+enum CreditTransactionType {
+  PURCHASE
+  USAGE
+  REFUND
+  BONUS
+  EXPIRY
+}
+
+enum AIVPCategory {
+  TEXT_TO_VIDEO      // VEO 3, Sora, RunwayML
+  TEXT_TO_IMAGE      // DALL-E 3
+  AVATAR_BASED       // Synthesia
+  IMAGE_TO_VIDEO     // RunwayML, Luma
+  VIDEO_EDITING      // Post-production plugins
+}
+
+// Pro User Management
+model User {
+  id                String              @id @default(cuid())
+  email             String              @unique
+  username          String?             @unique
+  name              String?
+  avatar            String?
+  
+  // Tier Management
+  tier              UserTier            @default(FREE)
+  tierStartDate     DateTime?
+  tierEndDate       DateTime?
+  
+  // Credits
+  totalCredits      Int                 @default(0)
+  usedCredits       Int                 @default(0)
+  availableCredits  Int                 @default(0)
+  
+  // Preferences
+  language          String              @default("en")
+  timezone          String              @default("UTC")
+  preferences       Json?               // UI preferences, notifications etc.
+  
+  // Usage Statistics
+  totalProjects     Int                 @default(0)
+  totalGenerations  Int                 @default(0)
+  lastActiveAt      DateTime?
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relations
+  projects          VideoProject[]
+  sessions          Session[]
+  creditTransactions CreditTransaction[]
+  pluginSettings    UserPluginSetting[]
+  
+  @@map("users")
+}
+
+// Credit System
+model CreditTransaction {
+  id            String                @id @default(cuid())
+  userId        String
+  
+  type          CreditTransactionType
+  amount        Int                   // Credits amount (positive for purchase/bonus, negative for usage)
+  balanceBefore Int                   // Credit balance before transaction
+  balanceAfter  Int                   // Credit balance after transaction
+  
+  // Transaction Details
+  description   String?
+  platformId    String?               // Platform used for generation
+  projectId     String?               // Associated project
+  
+  // Payment/Purchase Details
+  paymentId     String?               // External payment reference
+  priceUSD      Float?                // Price in USD
+  
+  // Metadata
+  metadata      Json?                 // Additional transaction data
+  
+  createdAt     DateTime              @default(now())
+  
+  // Relations
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform      Platform?             @relation(fields: [platformId], references: [id])
+  project       VideoProject?         @relation(fields: [projectId], references: [id])
+  
+  @@map("credit_transactions")
+}
+
+// Plugin System
+model Plugin {
+  id                String              @id @default(cuid())
+  name              String              @unique
+  displayName       String
+  description       String?
+  
+  type              PluginType
+  status            PluginStatus        @default(DISABLED)
+  
+  // Plugin Configuration
+  version           String              @default("1.0.0")
+  apiEndpoint       String?
+  authRequired      Boolean             @default(false)
+  
+  // Capabilities
+  supportedFormats  Json?               // Supported video/audio formats
+  maxDuration       Int?                // Max duration in seconds
+  maxFileSize       Int?                // Max file size in MB
+  
+  // Pricing
+  creditCost        Int                 @default(0)    // Credits per use
+  tierRestriction   UserTier?           // Minimum tier required
+  
+  // Feature Flags
+  betaFeature       Boolean             @default(false)
+  requiresApproval  Boolean             @default(false)
+  
+  // Configuration Schema
+  configSchema      Json?               // JSON schema for plugin configuration
+  defaultConfig     Json?               // Default configuration
+  
+  // Usage Analytics
+  totalUsage        Int                 @default(0)
+  lastUsed          DateTime?
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relations
+  userSettings      UserPluginSetting[]
+  
+  @@map("plugins")
+}
+
+model UserPluginSetting {
+  id        String    @id @default(cuid())
+  userId    String
+  pluginId  String
+  
+  enabled   Boolean   @default(false)
+  config    Json?     // User-specific plugin configuration
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plugin    Plugin    @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, pluginId])
+  @@map("user_plugin_settings")
+}
+
+// Enhanced Platform Model for Pro
+model ProPlatform {
+  id                String              @id @default(cuid())
+  platformId        String              @unique  // Reference to main Platform
+  
+  // Pro-specific fields
+  category          AIVPCategory
+  tier              UserTier            @default(FREE)    // Minimum tier required
+  
+  // Credit System
+  baseCreditCost    Int                 @default(1)       // Base credits per generation
+  multiplierRules   Json?               // Dynamic pricing rules
+  
+  // API Integration
+  isActive          Boolean             @default(true)
+  demoMode          Boolean             @default(true)    // Use mock responses
+  realApiEnabled    Boolean             @default(false)   // Real API integration ready
+  
+  // Capabilities
+  maxResolution     String?             // e.g., "4K", "1080p"
+  supportedAspects  Json?               // ["16:9", "9:16", "1:1"]
+  maxDurationSec    Int?
+  
+  // Quality Settings
+  qualityLevels     Json?               // ["draft", "standard", "premium"]
+  defaultQuality    String              @default("standard")
+  
+  // Feature Support
+  supportsUpscaling Boolean             @default(false)
+  supportsVariations Boolean            @default(false)
+  supportsEditing   Boolean             @default(false)
+  
+  // Usage Analytics
+  totalGenerations  Int                 @default(0)
+  successRate       Float?              // Success rate percentage
+  avgGenerationTime Float?              // Average time in seconds
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relations
+  platform          Platform            @relation(fields: [platformId], references: [id])
+  
+  @@map("pro_platforms")
+}
+
+model Session {
+  id          String    @id @default(cuid())
+  sessionId   String    @unique
+  userId      String?   // Link to user for Pro features
+  projectId   String?
+  currentStep Int       @default(1)
+  formData    Json?     // Store temporary form data
+  
+  // Pro Features
+  language    String    @default("en")    // Session language
+  tier        UserTier  @default(FREE)    // Session tier for feature access
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastActive  DateTime  @default(now())
+  
+  // Relations
+  user        User?     @relation(fields: [userId], references: [id])
+  
+  @@map("sessions")
+}
